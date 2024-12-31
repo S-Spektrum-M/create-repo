@@ -9,24 +9,22 @@ using std::string;
 
 string split(const string &str, char delimiter);
 void case_1();
-string case_2(char **argv);
+string case_2();
 
 int main(int argc, char **argv) {
   if (argc == 1)
     case_1();
-  string GIT_SERVER{argv[1]};
-  string REPO_NAME{argc == 2 ? case_2(argv) : argv[2]};
+  string REPO_NAME{argc == 2 ? case_2() : argv[2]};
 
-  string ssh_cmd = "ssh git@" + GIT_SERVER;
-  string mkdir_command = ssh_cmd + " \"mkdir " + REPO_NAME + ".git\"";
-  string init_command =
-      ssh_cmd + " \"cd " + REPO_NAME + ".git; git init --bare\"";
-  int status_mkdir = system(mkdir_command.c_str());
-  if (status_mkdir != 0) {
+  if (system(string{"ssh git@" + string{argv[1]} + " \"mkdir " + REPO_NAME +
+                    ".git\""}
+                 .c_str()) != 0) {
     std::cerr << "repository by that name already exists\n";
     return 1;
   }
-  system(init_command.c_str());
+  system(string{"ssh git@" + string{argv[1]} + " \"cd " + REPO_NAME +
+                ".git; git init --bare\""}
+             .c_str());
 }
 
 string split(const string &str, char delimiter) {
@@ -56,7 +54,7 @@ void case_1() {
   exit(1);
 }
 
-string case_2(char **argv) {
+string case_2() {
   char buffer[PATH_MAX];
   if (getcwd(buffer, sizeof(buffer)) == nullptr) {
     std::cerr << "ERROR: could not deduce current directory\n";
