@@ -61,11 +61,9 @@ std::pair<std::string, std::string> case_2(char **argv) {
     std::cerr << "ERROR: could not deduce current directory\n";
     exit(1);
   }
-  std::string GIT_SERVER = argv[1];
-  std::string REPO_NAME = split(buffer, '/');
+  return {argv[1], split(buffer, '/')};
 }
 
 std::pair<std::string, std::string> case_3(char **argv) {
-  std::string GIT_SERVER = argv[1];
-  std::string REPO_NAME = argv[2];
+  return {argv[1], argv[2]};
 }
