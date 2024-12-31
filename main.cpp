@@ -5,22 +5,23 @@
 #include <vector>
 #define PATH_MAX 4096
 #define MAX_PATH_EXPECTED_DEPTH 20
+using std::string;
 
-std::string split(const std::string &str, char delimiter);
+string split(const string &str, char delimiter);
 void case_1();
-std::pair<std::string, std::string> case_2(char **argv);
-std::pair<std::string, std::string> case_3(char **argv);
+string case_2(char **argv);
 
 int main(int argc, char **argv) {
   if (argc == 1)
     case_1();
-  auto [GIT_SERVER, REPO_NAME] = argc == 2 ? case_2(argv) : case_3(argv);
+  string GIT_SERVER{argv[1]};
+  string REPO_NAME{argc == 2 ? case_2(argv) : argv[2]};
 
-  auto ssh_cmd = "ssh git@" + GIT_SERVER;
-  std::string mkdir_command = ssh_cmd + " \"mkdir " + REPO_NAME + ".git\"";
-  std::string init_command =
+  string ssh_cmd = "ssh git@" + GIT_SERVER;
+  string mkdir_command = ssh_cmd + " \"mkdir " + REPO_NAME + ".git\"";
+  string init_command =
       ssh_cmd + " \"cd " + REPO_NAME + ".git; git init --bare\"";
-  auto status_mkdir = system(mkdir_command.c_str());
+  int status_mkdir = system(mkdir_command.c_str());
   if (status_mkdir != 0) {
     std::cerr << "repository by that name already exists\n";
     return 1;
@@ -28,11 +29,11 @@ int main(int argc, char **argv) {
   system(init_command.c_str());
 }
 
-std::string split(const std::string &str, char delimiter) {
-  std::vector<std::string> result;
+string split(const string &str, char delimiter) {
+  std::vector<string> result;
   // shouldn't be more than this I pray
   result.reserve(MAX_PATH_EXPECTED_DEPTH);
-  std::string current;
+  string current;
 
   for (char ch : str) {
     if (ch == delimiter && !current.empty()) {
@@ -55,15 +56,11 @@ void case_1() {
   exit(1);
 }
 
-std::pair<std::string, std::string> case_2(char **argv) {
+string case_2(char **argv) {
   char buffer[PATH_MAX];
   if (getcwd(buffer, sizeof(buffer)) == nullptr) {
     std::cerr << "ERROR: could not deduce current directory\n";
     exit(1);
   }
-  return {argv[1], split(buffer, '/')};
-}
-
-std::pair<std::string, std::string> case_3(char **argv) {
-  return {argv[1], argv[2]};
+  return split(buffer, '/');
 }
