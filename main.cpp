@@ -23,8 +23,12 @@ int main(int argc, char **argv) {
     return 1;
   }
   system(string{"ssh git@" + string{argv[1]} + " \"cd " + REPO_NAME +
-                ".git; git init --bare\""}
+                ".git; git init --bare\" > /dev/null 2>&1 &"}
              .c_str());
+  std::cout << "Succesfully Initialized repo: git@" + string{argv[1]} + ":~/" +
+                   REPO_NAME + ".git\n";
+  std::cout << "Use: git remote add " + string{argv[1]} + " git@" +
+                   string{argv[1]} + ":~/" + REPO_NAME + ".git\n";
 }
 
 string split(const string &str, char delimiter) {
