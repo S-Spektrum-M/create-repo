@@ -1,68 +1,99 @@
+#include <cctype>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <string>
-#include <unistd.h>
-#include <vector>
-#define PATH_MAX 4096
-#define MAX_PATH_EXPECTED_DEPTH 20
-using std::string;
 
-string split(const string &str, char delimiter);
-void case_1();
-string case_2();
+void printUsage();
+std::string get_working_dir();
+bool isValidInput(const std::string &input);
 
 int main(int argc, char **argv) {
-  if (argc == 1)
-    case_1();
-  string REPO_NAME{argc == 2 ? case_2() : argv[2]};
-
-  if (system(string{"ssh git@" + string{argv[1]} + " \"mkdir " + REPO_NAME +
-                    ".git\""}
-                 .c_str()) != 0) {
-    std::cerr << "repository by that name already exists\n";
+  if (argc < 2 || argc > 3) {
+    printUsage();
     return 1;
   }
-  system(string{"ssh git@" + string{argv[1]} + " \"cd " + REPO_NAME +
-                ".git; git init --bare\" > /dev/null 2>&1 &"}
-             .c_str());
-  std::cout << "Succesfully Initialized repo: git@" + string{argv[1]} + ":~/" +
-                   REPO_NAME + ".git\n";
-  std::cout << "Use: git remote add " + string{argv[1]} + " git@" +
-                   string{argv[1]} + ":~/" + REPO_NAME + ".git\n";
-}
 
-string split(const string &str, char delimiter) {
-  std::vector<string> result;
-  // shouldn't be more than this I pray
-  result.reserve(MAX_PATH_EXPECTED_DEPTH);
-  string current;
+  std::string remote_server = argv[1];
+  std::string repo_name;
 
-  for (char ch : str) {
-    if (ch == delimiter && !current.empty()) {
-      result.push_back(current);
-      current.clear();
-    } else {
-      current += ch;
-    }
+  if (argc == 2) {
+    // Automatically get repo name from the current directory
+    repo_name = get_working_dir();
+  } else {
+    // Get repo name from the command-line argument
+    repo_name = argv[2];
   }
 
-  if (!current.empty()) {
-    result.push_back(current);
+  if (!isValidInput(remote_server) || !isValidInput(repo_name)) {
+    std::cerr << "Error: Invalid characters in server or repository name.\n"
+              << "Only letters, numbers, hyphens, underscores, and periods are "
+                 "allowed.\n";
+    return 1;
   }
 
-  return result[result.size() - 1];
+  std::string command = "ssh git@" + remote_server + " 'mkdir " + repo_name +
+                        ".git && cd " + repo_name + ".git && git init --bare'";
+
+  std::cout << "Executing on remote: " << command << std::endl;
+
+  if (system(command.c_str()) != 0) {
+    std::cerr << "Error: Failed to create repository on the remote.\n"
+              << "Please check if:\n"
+              << "1. The repository already exists.\n"
+              << "2. You have the correct SSH permissions.\n"
+              << "3. 'git' is installed and in the remote user's PATH.\n";
+    return 1;
+  }
+
+  std::cout << "\nSuccessfully initialized bare repository: " << repo_name
+            << "\n"
+            << "\n"
+            << "Add it as a remote with:\n"
+            << "  git remote add " << remote_server << " git@" << remote_server
+            << ":~/" << repo_name << ".git\n";
+
+  return 0;
 }
 
-void case_1() {
-  std::cerr << "Usage: create-repo {REMOTE_SERVER} {REPO_NAME}\n";
-  exit(1);
+/**
+ * @brief Prints the usage message for the program.
+ */
+void printUsage() {
+  std::cerr << "Usage: create-repo {REMOTE_SERVER} [REPO_NAME]\n"
+            << "If REPO_NAME is not provided, it's derived from the current "
+               "directory.\n";
 }
 
-string case_2() {
-  char buffer[PATH_MAX];
-  if (getcwd(buffer, sizeof(buffer)) == nullptr) {
-    std::cerr << "ERROR: could not deduce current directory\n";
+/**
+ * @brief Gets the name of the current working directory.
+ * @return The name of the directory as a string.
+ */
+std::string get_working_dir() {
+  try {
+    return std::filesystem::current_path().filename().string();
+  } catch (const std::filesystem::filesystem_error &e) {
+    std::cerr << "Error: Could not deduce current directory name: " << e.what()
+              << '\n';
     exit(1);
   }
-  return split(buffer, '/');
+}
+
+/**
+ * @brief Validates input to prevent command injection.
+ * @param input The string to validate.
+ * @return if the string is safe or not.
+ */
+bool isValidInput(const std::string &input) {
+  if (input.empty()) {
+    return false;
+  }
+  for (char ch : input) {
+    // Allow alphanumeric characters, hyphen, underscore, and period.
+    if (!std::isalnum(static_cast<unsigned char>(ch)) && ch != '-' &&
+        ch != '_' && ch != '.') {
+      return false;
+    }
+  }
+  return true;
 }
