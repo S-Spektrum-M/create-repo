@@ -3,27 +3,29 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include "unistd.h"
+
+using std::string;
 
 void printUsage();
-std::string get_working_dir();
-bool isValidInput(const std::string &input);
+string get_working_dir();
+bool isValidInput(const string &input);
 
 int main(int argc, char **argv) {
-  if (argc < 2 || argc > 3) {
-    printUsage();
-    return 1;
+  string repo_name;
+
+  switch (argc) {
+      case 1:           // failing state with too many or not enough arguments
+      default:
+          printUsage();
+          return 1;
+      case 2:           // use the current directory name as the repo name
+          repo_name = get_working_dir();
+      case 3:           // use user specified name as the repo name
+          repo_name = argv[2];
   }
 
-  std::string remote_server = argv[1];
-  std::string repo_name;
-
-  if (argc == 2) {
-    // Automatically get repo name from the current directory
-    repo_name = get_working_dir();
-  } else {
-    // Get repo name from the command-line argument
-    repo_name = argv[2];
-  }
+  string remote_server = argv[1];
 
   if (!isValidInput(remote_server) || !isValidInput(repo_name)) {
     std::cerr << "Error: Invalid characters in server or repository name.\n"
@@ -32,18 +34,16 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  std::string command = "ssh git@" + remote_server + " 'mkdir " + repo_name +
-                        ".git && cd " + repo_name + ".git && git init --bare'";
+  string ssh_host = "git@" + remote_server;
+  string ssh_command = "'mkdir " + repo_name + ".git && cd " + repo_name + ".git && git init --bare";
+  std::cout << "Executing on remote: ssh" << ssh_host << " " << ssh_command << std::endl;
 
-  std::cout << "Executing on remote: " << command << std::endl;
-
-  if (system(command.c_str()) != 0) {
+  if (!execl("ssh", ssh_host.c_str(), ssh_command.c_str())) {
     std::cerr << "Error: Failed to create repository on the remote.\n"
               << "Please check if:\n"
               << "1. The repository already exists.\n"
               << "2. You have the correct SSH permissions.\n"
               << "3. 'git' is installed and in the remote user's PATH.\n";
-    return 1;
   }
 
   std::cout << "\nSuccessfully initialized bare repository: " << repo_name
@@ -69,7 +69,7 @@ void printUsage() {
  * @brief Gets the name of the current working directory.
  * @return The name of the directory as a string.
  */
-std::string get_working_dir() {
+string get_working_dir() {
   try {
     return std::filesystem::current_path().filename().string();
   } catch (const std::filesystem::filesystem_error &e) {
@@ -84,7 +84,7 @@ std::string get_working_dir() {
  * @param input The string to validate.
  * @return if the string is safe or not.
  */
-bool isValidInput(const std::string &input) {
+bool isValidInput(const string &input) {
   if (input.empty()) {
     return false;
   }
